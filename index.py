@@ -153,6 +153,9 @@ while True:
             # Print an error message
             print(f"Unable to find the image '{image_name}'!\n")
 
+            # Close all windows
+            cv.destroyAllWindows()
+
             # Continue to the next iteration
             continue
 
@@ -165,6 +168,9 @@ while True:
         # Print a warning message
         print("Please enter 'y', 'n' or 'Esc'!\n")
 
+        # Close all windows
+        cv.destroyAllWindows()
+
         # Continue to the next iteration
         continue
 
@@ -172,6 +178,9 @@ while True:
     if colored_image is None:
         # Print an error message
         print("Unable to read the image\n")
+
+        # Close all windows
+        cv.destroyAllWindows()
 
         # Continue to the next iteration
         continue
@@ -240,6 +249,9 @@ while True:
         print(
             "Unable to find the object!\nPlease provide a better image with more contrast!\n"
         )
+
+        # Close all windows
+        cv.destroyAllWindows()
 
         # Continue to the next iteration
         continue
@@ -315,7 +327,7 @@ while True:
     rounded_cx = int(cx / max_area)
     rounded_cy = int(cy / max_area)
 
-    # Calculate the color of the cross
+    # Calculate the color of the cross to have a good contrast with the background
     cross_color = [
         255 - int(pixel.mean())
         for pixel in cv.split(masked_image[rounded_cy, rounded_cx])
@@ -364,15 +376,18 @@ while True:
 
     # Ask the user if they want to save the image
     print(
-        "Do you want to save the image?\nPress 'y' to save the image or enter anything else to not do so!\n"
+        "Do you want to save the image?\nPress 'y' to save the image or enter anything else to not do so!"
     )
 
     # Wait for user input
     pressed_key = cv.waitKey(0)
 
     if pressed_key == ord("y"):
+        # Prompt the user for input
+        user_input = input("Please insert the name of the image you want to save: ")
+
         # Save the image
-        cv.imwrite("result.png", masked_image)
+        cv.imwrite(f"{user_input}.png", masked_image)
 
         # Print a newline
         print()
