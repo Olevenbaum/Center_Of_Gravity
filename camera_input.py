@@ -2,12 +2,14 @@
 import cv2 as cv
 from cv2.typing import MatLike
 import numpy as np
+from screeninfo import get_monitors
 import sys
 
 
-"""
-Define a function to display an image and wait for a key press or timer to expire
-"""
+# Get the resolution of the monitor
+monitor = get_monitors()[0]
+monitor_width = monitor.width
+monitor_height = monitor.height
 
 
 def show_image(
@@ -22,8 +24,20 @@ def show_image(
         # Add a suffix to the window name
         window_name = window_name + " (Press the spacebar to continue or Esc to exit)"
 
+    # Calculate the scaling factors
+    scale_width = monitor_width / image.shape[1]
+    scale_height = monitor_height / image.shape[0]
+    scale = min(scale_width, scale_height)
+
+    # Calculate the new size of the image
+    new_width = int(image.shape[1] * scale)
+    new_height = int(image.shape[0] * scale)
+
+    # Resize the image to match the resolution of the monitor
+    resized_image = cv.resize(image, (round(new_width / 2), round(new_height / 2)))
+
     # Display the image
-    cv.imshow(window_name, image)
+    cv.imshow(window_name, resized_image)
 
     # Wait for a key press
     pressed_key = cv.waitKey(timer)
@@ -44,11 +58,6 @@ def show_image(
         return default_return
 
 
-"""
-Define a function to close a window with a specific name (and suffix)
-"""
-
-
 def close_window(
     window_name: str,
     custom_suffix: bool = False,
@@ -62,73 +71,119 @@ def close_window(
     cv.destroyWindow(window_name)
 
 
-"""
-Read an image from the camera on key press and display it
-"""
-
 while True:
-    # Open the camera
-    camera = cv.VideoCapture(0)
-
-    # Check if camera is opened
-    if camera is None or not camera.isOpened():
-        # Exit the program
-        sys.exit("Could not open the camera")
-
+    # Create a variable to store the original image
     colored_image: MatLike | None = None
 
-    # Loop until the user presses the Esc key or spacebar
-    while True:
-        # Read a frame from the camera
-        success, frame = camera.read()
+    # Prompt the user for input
+    user_input = input(
+        "Do you want to use the camera or use a saved image?\nEnter 'y' for using the camera, 'n' for importing an image, or 'Esc' to exit the program: "
+    )
 
-        # Check if frame is not empty
-        if not success:
+    # Print a newline
+    print()
+
+    # Check if the user pressed y
+    if user_input.lower() == "y":
+        # Open the camera
+        camera = cv.VideoCapture(0)
+
+        # Check if camera is opened
+        if camera is None or not camera.isOpened():
             # Exit the program
-            sys.exit("Could not read a frame from the camera")
+            sys.exit("Unable to open the camera!")
 
-        return_value = show_image(
-            frame,
-            "Camera (Press spacebar to take a photo or Esc to exit the program)",
-            None,
-            1,
-            True,
-        )
+        # Loop until the user presses the Esc key or spacebar
+        while True:
+            # Read a frame from the camera
+            success, frame = camera.read()
 
-        # Display the frame
-        if return_value:
-            # Save the frame
-            colored_image = frame
+            # Check if frame is not empty
+            if not success:
+                # Exit the program
+                sys.exit("Unable to read a frame from the camera!")
 
-            # Close the window
-            close_window(
+            return_value = show_image(
+                frame,
                 "Camera (Press spacebar to take a photo or Esc to exit the program)",
+                None,
+                1,
                 True,
             )
 
-            # Exit the loop
-            break
+            # Display the frame
+            if return_value:
+                # Save the frame
+                colored_image = frame
 
-        elif return_value is False:
-            # Exit the program
-            sys.exit("The program was closed")
+                # Close the window
+                close_window(
+                    "Camera (Press spacebar to take a photo or Esc to exit the program)",
+                    True,
+                )
 
-    # Release the camera
-    camera.release()
+                # Exit the loop
+                break
 
-    # Load the image in color
-    colored_image = cv.imread("image.jpg")
+            elif return_value is False:
+                # Exit the program
+                sys.exit("Program ended!")
+
+        # Release the camera
+        camera.release()
+
+    elif user_input.lower() == "n":
+        # Print a message for the user
+        print(
+            "Please insert the name of the image you want to use.\nMake sure to include the file extension (e.g. '.jpg')!"
+        )
+
+        # Wait for user input
+        image_name = input()
+
+        # Print a newline
+        print()
+
+        # Load the image in color
+        # colored_image = cv.imread("Amoebe_1.jpg")
+        # colored_image = cv.imread("Amoebe_2.jpg")
+        try:
+            colored_image = cv.imread(image_name)
+        except:
+            # Print an error message
+            print(f"Unable to find the image '{image_name}'!\n")
+
+            # Continue to the next iteration
+            continue
+
+    # Check if the user pressed the Esc key
+    elif user_input.lower() == "esc" or user_input.lower() == "exit":
+        # Exit the program
+        sys.exit("Program ended!")
+
+    else:
+        # Print a warning message
+        print("Please enter 'y', 'n' or 'Esc'!\n")
+
+        # Continue to the next iteration
+        continue
 
     # Check if image is loaded
     if colored_image is None:
         # Print an error message
-        print("Could not read the image")
+        print("Unable to read the image\n")
 
         # Continue to the next iteration
         continue
 
     # Display the image
     if not show_image(colored_image, "Processing image...", timer=2000):
+        # Close the window
+        close_window("Processing image...")
+
+        # Print a newline
+        print()
+
         # Continue to the next iteration
         continue
 
@@ -137,6 +192,12 @@ while True:
 
     # Display the image
     if not show_image(hsv_image, "Processing image...", timer=2000):
+        # Close the window
+        close_window("Processing image...")
+
+        # Print a newline
+        print()
+
         # Continue to the next iteration
         continue
 
@@ -159,19 +220,56 @@ while True:
         "Processing image...",
         timer=2000,
     ):
+        # Close the window
+        close_window("Processing image...")
+
+        # Print a newline
+        print()
+
         # Continue to the next iteration
         continue
 
     # Find contours in the threshold image
     contours, _ = cv.findContours(hsv_mask, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
 
-    # Create an empty mask to store the outline
+    # Calculate the area of the largest contour
+    max_area = max(cv.contourArea(cnt) for cnt in contours)
+
+    if max_area < colored_image.shape[0] * colored_image.shape[1] * 0.1:
+        # Print a warning message
+        print(
+            "Unable to find the object!\nPlease provide a better image with more contrast!\n"
+        )
+
+        # Continue to the next iteration
+        continue
+
+    # Create an empty mask to store the contours
     contour_mask = np.zeros_like(colored_image)
 
     # Draw the contours on the mask
     cv.drawContours(
         contour_mask, contours, -1, (255, 255, 255, 255), thickness=cv.FILLED
     )
+
+    # Display the image
+    if not show_image(
+        cv.bitwise_and(
+            hsv_image,
+            hsv_image,
+            mask=cv.cvtColor(contour_mask, cv.COLOR_BGR2GRAY).astype("uint8"),
+        ),
+        "Processing image...",
+        timer=2000,
+    ):
+        # Close the window
+        close_window("Processing image...")
+
+        # Print a newline
+        print()
+
+        # Continue to the next iteration
+        continue
 
     # Create a 4-channel image from the mask
     transparent_mask = cv.cvtColor(contour_mask, cv.COLOR_BGR2BGRA)
@@ -181,30 +279,27 @@ while True:
         np.uint8
     )
 
-    # Invert the mask
-    inverted_mask = cv.bitwise_not(transparent_mask)
-
-    # Create a 4-channel image from the mask
-    inverted_mask = cv.cvtColor(inverted_mask, cv.COLOR_BGR2BGRA)
-
-    # Set the alpha channel to 0 for the background and 255 for the object
-    inverted_mask[:, :, 3] = np.where(inverted_mask[:, :, 0] > 0, 0, 255).astype(
-        np.uint8
-    )
-
-    # Apply the mask to the image
-    inverted_mask_image = cv.bitwise_and(
-        cv.cvtColor(colored_image, cv.COLOR_BGR2BGRA), inverted_mask
-    )
-
     # Apply the mask to the image
     masked_image = cv.bitwise_and(
         cv.cvtColor(colored_image, cv.COLOR_BGR2BGRA), transparent_mask
     )
 
-    # Calculate the area of the largest contour
-    max_area = max(cv.contourArea(cnt) for cnt in contours)
+    # Display the image
+    if not show_image(
+        masked_image,
+        "Processing image...",
+        timer=2000,
+    ):
+        # Close the window
+        close_window("Processing image...")
 
+        # Print a newline
+        print()
+
+        # Continue to the next iteration
+        continue
+
+    # Define the center coordinates
     cx, cy = 0, 0
 
     # Loop over each pixel in the result image
@@ -216,47 +311,71 @@ while True:
                 cx += x
                 cy += y
 
-    center = (cx / max_area, cy / max_area)
-
     # Convert the center coordinates to integers
-    rounded_cx = int(center[0])
-    rounded_cy = int(center[1])
+    rounded_cx = int(cx / max_area)
+    rounded_cy = int(cy / max_area)
 
-    # Calculate the average color of the masked image
-    average_color_per_row = np.average(inverted_mask_image[..., :3], axis=0)
-    average_color = np.average(average_color_per_row, axis=0)
+    # Calculate the color of the cross
+    cross_color = [
+        255 - int(pixel.mean())
+        for pixel in cv.split(masked_image[rounded_cy, rounded_cx])
+    ]
 
-    # Calculate the opposite color
-    opposite_color = [255 - x for x in average_color]
+    # Calculate the diagonal length of the image
+    diagonal_length = np.sqrt(masked_image.shape[0] ** 2 + masked_image.shape[1] ** 2)
 
-    # Convert the opposite color to integers
-    opposite_color = [int(x) for x in opposite_color]
-
-    # Define the size of the cross
-    cross_size = 5
+    # Define the size of the cross as a percentage of the diagonal length
+    cross_size = int((diagonal_length * 0.02) / 2)
 
     # Draw a cross at the center of gravity
     cv.line(
         masked_image,
         (rounded_cx - cross_size, rounded_cy + cross_size),
         (rounded_cx + cross_size, rounded_cy - cross_size),
-        opposite_color,
+        cross_color,
         round(cross_size / 2),
     )
     cv.line(
         masked_image,
         (rounded_cx - cross_size, rounded_cy - cross_size),
         (rounded_cx + cross_size, rounded_cy + cross_size),
-        opposite_color,
+        cross_color,
         round(cross_size / 2),
     )
 
-    print(center)
+    # Display the image
+    if not show_image(
+        masked_image,
+        "Processing image...",
+    ):
+        # Close the window
+        close_window("Processing image...")
 
-    cv.imshow("Original image", colored_image)
-    cv.imshow("HSV mask", hsv_mask)
-    cv.imshow("Resulting image", masked_image)
-    cv.waitKey(0)
+        # Print a newline
+        print()
+
+        # Continue to the next iteration
+        continue
+
+    # Print the coordinates of the centroid
+    print(
+        f"The coordinates of the center of gravity are: ({rounded_cx}, {rounded_cy})!\n"
+    )
+
+    # Ask the user if they want to save the image
+    print(
+        "Do you want to save the image?\nPress 'y' to save the image or enter anything else to not do so!\n"
+    )
+
+    # Wait for user input
+    pressed_key = cv.waitKey(0)
+
+    if pressed_key == ord("y"):
+        # Save the image
+        cv.imwrite("result.png", masked_image)
+
+        # Print a newline
+        print()
 
     # Close all windows
     cv.destroyAllWindows()
